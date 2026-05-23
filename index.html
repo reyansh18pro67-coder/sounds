@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Sounding OK</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#ffffff;
+  --surface:#f5f5f3;
+  --surface2:#ebebea;
+  --border:#e0dedd;
+  --border2:#c8c7c5;
+  --text:#111110;
+  --muted:#888784;
+  --accent:#1a8a4a;
+  --accent-light:#e8f5ee;
+  --rec:#e03030;
+  --rec-light:#fdeaea;
+  --wave1:#1a8a4a;
+  --wave2:#2563eb;
+  --play:#2563eb;
+  --play-light:#eff4ff;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;overflow:hidden;touch-action:manipulation}
+body{display:flex;flex-direction:column;max-width:430px;margin:0 auto;height:100dvh}
+
+.header{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 10px;flex-shrink:0;border-bottom:1px solid var(--border)}
+.logo{font-size:18px;font-weight:800;letter-spacing:-0.5px;color:var(--text)}
+.logo span{color:var(--accent)}
+.hclock{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:0.5px}
+
+.vis-wrap{flex-shrink:0;padding:16px 20px 10px;position:relative}
+#vis-canvas{width:100%;height:110px;border-radius:12px;background:var(--surface);display:block;border:1px solid var(--border)}
+.vis-label{position:absolute;top:26px;left:30px;font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;display:flex;align-items:center;gap:5px}
+.rec-dot{width:7px;height:7px;border-radius:50%;background:var(--rec);opacity:0}
+.rec-dot.on{opacity:1;animation:blink 1s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.15}}
+
+.timer-row{text-align:center;padding:4px 0 0;font-family:'DM Mono',monospace;font-size:14px;color:var(--muted);letter-spacing:2px;flex-shrink:0}
+.timer-row.rec{color:var(--rec)}
+
+.controls{flex-shrink:0;display:flex;align-items:center;justify-content:center;gap:20px;padding:12px 20px}
+.btn-sm{width:48px;height:48px;border-radius:50%;border:1.5px solid var(--border2);background:var(--surface);color:var(--text);font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .12s,transform .1s;-webkit-tap-highlight-color:transparent;user-select:none}
+.btn-sm:active{transform:scale(0.91);background:var(--surface2)}
+.btn-sm.off{opacity:0.28;pointer-events:none}
+
+.btn-rec{width:70px;height:70px;border-radius:50%;border:3px solid var(--rec);background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .12s;-webkit-tap-highlight-color:transparent;user-select:none;flex-shrink:0}
+.btn-rec:active{transform:scale(0.92)}
+.btn-rec-inner{width:48px;height:48px;border-radius:50%;background:var(--rec);transition:border-radius .2s,width .2s,height .2s}
+.btn-rec.going .btn-rec-inner{border-radius:7px;width:24px;height:24px}
+.btn-rec.going{animation:pulse 1.5s ease-out infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(224,48,48,0.25)}100%{box-shadow:0 0 0 16px rgba(224,48,48,0)}}
+
+.add-bar{flex-shrink:0;padding:4px 20px 10px}
+.add-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:11px;border-radius:10px;border:1.5px dashed var(--border2);background:transparent;color:var(--muted);font-family:'Syne',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:border-color .15s,color .15s,background .15s;-webkit-tap-highlight-color:transparent;letter-spacing:0.2px}
+.add-btn:active{border-color:var(--accent);color:var(--accent);background:var(--accent-light)}
+.add-plus{width:22px;height:22px;border-radius:50%;background:var(--surface2);border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;line-height:1}
+
+.sep{height:1px;background:var(--border);flex-shrink:0;margin:0 20px}
+
+.list-hdr{padding:10px 20px 6px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.list-title{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)}
+.list-ct{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
+
+.list{flex:1;overflow-y:auto;padding:0 20px 24px;display:flex;flex-direction:column;gap:10px}
+.list::-webkit-scrollbar{width:0}
+.empty{text-align:center;padding:28px 0;color:var(--muted);font-size:13px;line-height:1.8;font-family:'DM Mono',monospace}
+
+.card{background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:9px;transition:border-color .15s}
+.card:hover{border-color:var(--border2)}
+.card.playing{border-color:var(--play);background:var(--play-light)}
+
+.card-top{display:flex;align-items:center;gap:10px}
+.play-btn{width:38px;height:38px;border-radius:10px;background:var(--surface);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;cursor:pointer;transition:background .12s,border-color .12s;-webkit-tap-highlight-color:transparent}
+.card.playing .play-btn{background:var(--play);border-color:var(--play);color:#fff}
+.play-btn:active{background:var(--surface2)}
+.card-info{flex:1;min-width:0}
+.card-name{font-size:14px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:text;outline:none;border-bottom:1.5px solid transparent;transition:border-color .12s}
+.card-name:focus{border-color:var(--accent)}
+.card-meta{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-top:2px}
+.card-acts{display:flex;gap:5px;flex-shrink:0}
+.act-btn{width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:14px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .1s,color .1s;-webkit-tap-highlight-color:transparent}
+.act-btn.dl:active{color:var(--play);background:var(--play-light)}
+.act-btn.del:active{color:var(--rec);background:var(--rec-light)}
+
+.mini-wave{width:100%;height:26px;display:flex;align-items:center;gap:2px}
+.mw-bar{flex:1;border-radius:2px;background:var(--surface2);transition:background .15s}
+
+.prog-wrap{height:3px;border-radius:2px;background:var(--surface2);overflow:hidden;display:none}
+.card.playing .prog-wrap{display:block}
+.prog-fill{height:100%;width:0%;background:var(--play);border-radius:2px;transition:width .1s linear}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">Sounding<span>OK</span></div>
+  <div class="hclock" id="clock">--:--</div>
+</div>
+
+<div class="vis-wrap">
+  <canvas id="vis-canvas"></canvas>
+  <div class="vis-label">
+    <div class="rec-dot" id="rdot"></div>
+    <span id="vlabel">ready</span>
+  </div>
+</div>
+
+<div class="timer-row" id="timer">00:00</div>
+
+<div class="controls">
+  <button class="btn-sm off" id="btn-pause" aria-label="Pause">⏸</button>
+  <button class="btn-rec" id="btn-rec" aria-label="Record/Stop">
+    <div class="btn-rec-inner"></div>
+  </button>
+  <button class="btn-sm off" id="btn-trash" aria-label="Discard">🗑</button>
+</div>
+
+<div class="add-bar">
+  <button class="add-btn" id="btn-add" aria-label="New recording">
+    <span class="add-plus">+</span>
+    new recording
+  </button>
+</div>
+
+<div class="sep"></div>
+
+<div class="list-hdr">
+  <div class="list-title">Saved</div>
+  <div class="list-ct" id="list-ct">0 recordings</div>
+</div>
+
+<div class="list" id="list">
+  <div class="empty" id="empty-msg">no recordings yet<br>tap ● to start</div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+let stream=null,analyser=null,mediaRecorder=null,audioChunks=[];
+let isRec=false,isPaused=false,timerSecs=0,timerInt=null;
+let recordings=[],recCount=0,animId=null;
+let curAudio=null,curCard=null;
+let idleT=0;
+
+function updateClock(){const n=new Date();$('clock').textContent=n.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}
+updateClock();setInterval(updateClock,10000);
+
+const canvas=$('vis-canvas');
+const ctx=canvas.getContext('2d');
+function rsz(){canvas.width=canvas.offsetWidth*devicePixelRatio;canvas.height=canvas.offsetHeight*devicePixelRatio}
+rsz();window.addEventListener('resize',rsz);
+
+function drawIdle(){
+  const w=canvas.width,h=canvas.height;
+  ctx.clearRect(0,0,w,h);
+  const waveCfg=[
+    {color:'rgba(26,138,74,0.2)',amp:12,freq:0.013,spd:0.6,off:0},
+    {color:'rgba(37,99,235,0.12)',amp:7,freq:0.02,spd:-0.4,off:60},
+    {color:'rgba(26,138,74,0.07)',amp:18,freq:0.008,spd:0.25,off:140},
+  ];
+  waveCfg.forEach(wv=>{
+    ctx.beginPath();
+    for(let x=0;x<=w;x+=2){
+      const y=h/2+wv.amp*(Math.sin((x+wv.off+idleT*wv.spd)*wv.freq))*devicePixelRatio;
+      x===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    }
+    ctx.strokeStyle=wv.color;
+    ctx.lineWidth=1.8*devicePixelRatio;
+    ctx.stroke();
+  });
+  idleT+=1;
+  if(!isRec)animId=requestAnimationFrame(drawIdle);
+}
+drawIdle();
+
+function drawLive(){
+  if(!analyser)return;
+  const buf=analyser.frequencyBinCount;
+  const data=new Uint8Array(buf);
+  analyser.getByteTimeDomainData(data);
+  const w=canvas.width,h=canvas.height;
+  ctx.clearRect(0,0,w,h);
+  const bw=Math.max(2,(w/buf)*2.5);
+  const step=Math.floor(buf/(w/bw));
+  let x=0;
+  for(let i=0;i<buf;i+=step){
+    const v=(data[i]/128)-1;
+    const bh=Math.abs(v)*h*0.82;
+    const alpha=0.3+Math.abs(v)*0.65;
+    ctx.fillStyle=`rgba(26,138,74,${alpha})`;
+    ctx.beginPath();
+    ctx.roundRect(x,h/2-bh/2,Math.max(1,bw-1),bh,2);
+    ctx.fill();
+    x+=bw;
+  }
+  if(isRec&&!isPaused)animId=requestAnimationFrame(drawLive);
+}
+
+function fmt(s){const m=Math.floor(s/60),sc=s%60;return`${String(m).padStart(2,'0')}:${String(sc).padStart(2,'0')}`}
+
+async function getMic(){
+  if(stream)return true;
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    const ac=new AudioContext();
+    analyser=ac.createAnalyser();
+    analyser.fftSize=512;
+    analyser.smoothingTimeConstant=0.82;
+    ac.createMediaStreamSource(stream).connect(analyser);
+    return true;
+  }catch(e){alert('Microphone access denied.');return false;}
+}
+
+async function startRec(){
+  const ok=await getMic();if(!ok)return;
+  audioChunks=[];
+  mediaRecorder=new MediaRecorder(stream);
+  mediaRecorder.ondataavailable=e=>{if(e.data.size>0)audioChunks.push(e.data)};
+  mediaRecorder.onstop=saveRec;
+  mediaRecorder.start(100);
+  isRec=true;isPaused=false;timerSecs=0;
+  cancelAnimationFrame(animId);drawLive();
+  timerInt=setInterval(()=>{if(!isPaused){timerSecs++;$('timer').textContent=fmt(timerSecs);}},1000);
+  $('btn-rec').classList.add('going');
+  $('rdot').classList.add('on');
+  $('timer').classList.add('rec');
+  $('btn-pause').classList.remove('off');
+  $('btn-trash').classList.remove('off');
+  $('vlabel').textContent='recording';
+}
+
+function pauseRec(){
+  if(!isRec)return;
+  if(!isPaused){
+    mediaRecorder.pause();isPaused=true;
+    $('btn-pause').textContent='▶';
+    $('rdot').classList.remove('on');
+    cancelAnimationFrame(animId);drawIdle();
+  }else{
+    mediaRecorder.resume();isPaused=false;
+    $('btn-pause').textContent='⏸';
+    $('rdot').classList.add('on');
+    cancelAnimationFrame(animId);drawLive();
+  }
+}
+
+function stopRec(){
+  if(!isRec)return;
+  mediaRecorder.stop();
+  isRec=false;isPaused=false;
+  clearInterval(timerInt);
+  cancelAnimationFrame(animId);drawIdle();
+  $('btn-rec').classList.remove('going');
+  $('rdot').classList.remove('on');
+  $('timer').classList.remove('rec');
+  $('timer').textContent='00:00';
+  $('btn-pause').classList.add('off');$('btn-pause').textContent='⏸';
+  $('btn-trash').classList.add('off');
+  $('vlabel').textContent='ready';
+}
+
+function discardRec(){
+  if(!isRec)return;
+  const orig=mediaRecorder.onstop;
+  mediaRecorder.onstop=()=>{};
+  mediaRecorder.stop();
+  audioChunks=[];isRec=false;isPaused=false;
+  clearInterval(timerInt);
+  cancelAnimationFrame(animId);drawIdle();
+  $('btn-rec').classList.remove('going');
+  $('rdot').classList.remove('on');
+  $('timer').classList.remove('rec');
+  $('timer').textContent='00:00';
+  $('btn-pause').classList.add('off');$('btn-pause').textContent='⏸';
+  $('btn-trash').classList.add('off');
+  $('vlabel').textContent='ready';
+}
+
+function saveRec(){
+  const blob=new Blob(audioChunks,{type:'audio/webm'});
+  const url=URL.createObjectURL(blob);
+  recCount++;
+  const now=new Date();
+  const ds=now.toLocaleDateString('en-GB',{day:'2-digit',month:'short'})+' · '+now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  const dur=timerSecs;
+  recordings.unshift({id:Date.now(),name:`Take ${recCount}`,url,blob,dur,ds,waves:Array.from({length:36},()=>Math.random())});
+  renderList();
+}
+
+function renderList(){
+  const list=$('list');
+  $('list-ct').textContent=`${recordings.length} recording${recordings.length!==1?'s':''}`;
+  $('empty-msg').style.display=recordings.length?'none':'block';
+  list.querySelectorAll('.card').forEach(c=>c.remove());
+  recordings.forEach(rec=>{
+    const card=document.createElement('div');
+    card.className='card';card.dataset.id=rec.id;
+    const bars=rec.waves.map(h=>`<div class="mw-bar" style="height:${Math.max(4,Math.round(h*22))}px"></div>`).join('');
+    card.innerHTML=`
+      <div class="card-top">
+        <div class="play-btn" data-play="${rec.id}" aria-label="Play">▶</div>
+        <div class="card-info">
+          <div class="card-name" contenteditable="true" spellcheck="false">${rec.name}</div>
+          <div class="card-meta">${rec.ds} &nbsp;·&nbsp; ${fmt(rec.dur)}</div>
+        </div>
+        <div class="card-acts">
+          <button class="act-btn dl" data-dl="${rec.id}" aria-label="Download">↓</button>
+          <button class="act-btn del" data-del="${rec.id}" aria-label="Delete">✕</button>
+        </div>
+      </div>
+      <div class="mini-wave">${bars}</div>
+      <div class="prog-wrap"><div class="prog-fill" id="pf-${rec.id}"></div></div>`;
+    card.querySelector('.card-name').addEventListener('blur',e=>{
+      const r=recordings.find(r=>r.id===rec.id);
+      if(r)r.name=e.target.textContent.trim()||r.name;
+    });
+    list.appendChild(card);
+  });
+}
+
+function playRec(id){
+  const rec=recordings.find(r=>r.id===id);if(!rec)return;
+  const card=document.querySelector(`.card[data-id="${id}"]`);
+  const pb=card.querySelector('.play-btn');
+  if(curAudio&&!curAudio.paused){
+    curAudio.pause();
+    if(curCard){curCard.classList.remove('playing');curCard.querySelector('.play-btn').textContent='▶';}
+    if(curAudio._rid===id){curAudio=null;curCard=null;return;}
+  }
+  const audio=new Audio(rec.url);audio._rid=id;
+  curAudio=audio;curCard=card;
+  card.classList.add('playing');pb.textContent='⏸';
+  const fill=document.getElementById(`pf-${id}`);
+  audio.ontimeupdate=()=>{
+    if(audio.duration&&fill)fill.style.width=(audio.currentTime/audio.duration*100)+'%';
+    animWave(card,audio.currentTime,audio.duration);
+  };
+  audio.onended=()=>{
+    card.classList.remove('playing');pb.textContent='▶';
+    if(fill)fill.style.width='0%';
+    resetWave(card);curAudio=null;curCard=null;
+  };
+  audio.play();
+}
+
+function animWave(card,cur,dur){
+  const bars=card.querySelectorAll('.mw-bar');
+  const prog=dur?cur/dur:0;
+  const ai=Math.floor(prog*bars.length);
+  bars.forEach((b,i)=>{
+    b.style.background=i<ai?'#2563eb':i===ai?'#1a8a4a':'var(--surface2)';
+  });
+}
+function resetWave(card){card.querySelectorAll('.mw-bar').forEach(b=>b.style.background='var(--surface2)');}
+
+$('btn-rec').addEventListener('click',()=>isRec?stopRec():startRec());
+$('btn-pause').addEventListener('click',pauseRec);
+$('btn-trash').addEventListener('click',()=>{if(confirm('Discard this recording?'))discardRec();});
+$('btn-add').addEventListener('click',()=>{if(isRec)stopRec();setTimeout(startRec,160);});
+
+document.addEventListener('click',e=>{
+  const pl=e.target.closest('[data-play]');
+  if(pl){playRec(parseInt(pl.dataset.play));return;}
+  const dl=e.target.closest('[data-dl]');
+  if(dl){
+    const r=recordings.find(r=>r.id===parseInt(dl.dataset.dl));
+    if(r){const a=document.createElement('a');a.href=r.url;a.download=r.name.replace(/\s+/g,'_')+'.webm';a.click();}
+    return;
+  }
+  const del=e.target.closest('[data-del]');
+  if(del){
+    const id=parseInt(del.dataset.del);
+    if(curAudio&&curAudio._rid===id){curAudio.pause();curAudio=null;curCard=null;}
+    recordings=recordings.filter(r=>r.id!==id);
+    renderList();
+  }
+});
+
+renderList();
+</script>
+</body>
+</html>
